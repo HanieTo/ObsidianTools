@@ -4,6 +4,12 @@
   (outside this repo) the first time you run it, never shared anywhere.
 #>
 
+# Windows PowerShell 5.1's console defaults to a non-Unicode codepage, which
+# mangles non-ASCII input/output (e.g. Persian) unless overridden like this.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+chcp 65001 > $null
+
 # ---- Change the model here if you want a different free one ----
 $Model = "openai/gpt-oss-20b:free"
 # -------------------------------------------------------------------
@@ -42,12 +48,23 @@ Write-Host ""
 Write-Host "Sending to OpenRouter ($Model)..." -ForegroundColor Cyan
 
 try {
-    $response = Invoke-RestMethod -Uri "https://openrouter.ai/api/v1/chat/completions" `
+    # Invoke-RestMethod on Windows PowerShell 5.1 mis-detects the response
+    # encoding as Latin-1 for APIs that don't send an explicit response
+    # charset, corrupting any non-ASCII text (e.g. Persian) it returns. Using
+    # Invoke-WebRequest and decoding the raw bytes as UTF8 ourselves avoids
+    # that entirely. The request body is UTF8-encoded explicitly for the
+    # same reason, on the way out.
+    $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+    $webResponse = Invoke-WebRequest -Uri "https://openrouter.ai/api/v1/chat/completions" `
         -Method Post `
         -Headers @{ Authorization = "Bearer $apiKey" } `
-        -ContentType "application/json" `
-        -Body $body `
-        -TimeoutSec 60
+        -ContentType "application/json; charset=utf-8" `
+        -Body $bodyBytes `
+        -TimeoutSec 60 `
+        -UseBasicParsing
+
+    $jsonText = [System.Text.Encoding]::UTF8.GetString($webResponse.RawContentStream.ToArray())
+    $response = $jsonText | ConvertFrom-Json
 
     $result = $response.choices[0].message.content.Trim()
 
