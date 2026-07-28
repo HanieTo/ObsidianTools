@@ -76,6 +76,13 @@ else
 fi
 
 save_config
+
+REAL_VAULT_PATH=$(realpath "$VAULT_PATH" 2>/dev/null || echo "$VAULT_PATH")
+echo ""
+echo "Real vault path: $REAL_VAULT_PATH"
+echo "(Compare this to what Obsidian shows for this vault: tap the vault-switcher"
+echo "icon top-left in Obsidian, or Settings > About > vault path. They must match"
+echo "for files pulled here to actually show up in Obsidian.)"
 echo ""
 
 if [ "$CHOICE" = "1" ]; then
