@@ -13,16 +13,16 @@ This is the plugin version of the Windows-only `ObsidianifyNote.ps1` script in t
 
 You can also run it manually anytime via the command palette (`Process Inbox folder`) or the ribbon icon, which processes every `.txt` currently sitting in the Inbox folder.
 
-## Optional: AI cleanup for typos
+## AI-assisted cleanup
 
-In plugin settings you can add a free [Google Gemini](https://aistudio.google.com) API key and enable "AI cleanup for prose lines". When on, plain-text sentences get sent to Gemini to fix obvious typos before the note is created.
+This plugin deliberately does **not** include AI text cleanup. We tried building it in twice (a local Ollama model, then a Gemini API integration) and both worked technically, but keeping it maintained as custom code wasn't worth it when good general-purpose options already exist as separate community plugins - install one of these from Obsidian's Community Plugins browser instead:
 
-This is deliberately narrow:
-- **Only prose lines are sent.** Anything classified as a command, IP, domain, path, or `Label:` heading is never touched or sent anywhere - the same classifier the heuristic formatter uses.
-- **A safety guard rejects suspicious "fixes".** If Gemini's response is wildly different in length from the original (a sign of a rewrite rather than a typo fix, or a hallucination), the original line is kept instead.
-- It's off by default. You need to both add an API key and flip the toggle for anything to be sent anywhere.
+- [Gemini Scribe](https://github.com/allenhutchison/obsidian-gemini)
+- [Gemini Helper](https://github.com/takeshy/obsidian-gemini-helper)
+- Gemini AI Commander
+- Gemini Assistant
 
-Background: we first tried this with a local model (Ollama, `llama3.2:1b`) so nothing would leave the device, but it wasn't reliable enough - it once rewrote a real shell command into a different one, and separately garbled prose while leaking its own prompt text into the output. Gemini's free tier is far more reliable for a "fix typos, don't change meaning" task, at the cost of prose lines being sent to Google's servers when the feature is enabled - worth knowing if your notes contain sensitive text.
+All work with a free API key from [aistudio.google.com](https://aistudio.google.com). Run them manually on a note/selection whenever you want AI cleanup, rather than automatically on every Inbox conversion - which also means you stay in control of exactly what gets sent to Google's servers, one note at a time.
 
 ## Installing
 
