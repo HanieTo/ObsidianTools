@@ -13,6 +13,17 @@ This is the plugin version of the Windows-only `ObsidianifyNote.ps1` script in t
 
 You can also run it manually anytime via the command palette (`Process Inbox folder`) or the ribbon icon, which processes every `.txt` currently sitting in the Inbox folder.
 
+## Optional: AI cleanup for typos
+
+In plugin settings you can add a free [Google Gemini](https://aistudio.google.com) API key and enable "AI cleanup for prose lines". When on, plain-text sentences get sent to Gemini to fix obvious typos before the note is created.
+
+This is deliberately narrow:
+- **Only prose lines are sent.** Anything classified as a command, IP, domain, path, or `Label:` heading is never touched or sent anywhere - the same classifier the heuristic formatter uses.
+- **A safety guard rejects suspicious "fixes".** If Gemini's response is wildly different in length from the original (a sign of a rewrite rather than a typo fix, or a hallucination), the original line is kept instead.
+- It's off by default. You need to both add an API key and flip the toggle for anything to be sent anywhere.
+
+Background: we first tried this with a local model (Ollama, `llama3.2:1b`) so nothing would leave the device, but it wasn't reliable enough - it once rewrote a real shell command into a different one, and separately garbled prose while leaking its own prompt text into the output. Gemini's free tier is far more reliable for a "fix typos, don't change meaning" task, at the cost of prose lines being sent to Google's servers when the feature is enabled - worth knowing if your notes contain sensitive text.
+
 ## Installing
 
 **Windows:** double-click `Install-Plugin.bat`. It copies `manifest.json` and `main.js` into `<vault>/.obsidian/plugins/obsidianify-inbox/` and creates the `Inbox` folder if it doesn't exist yet. Edit `$VaultPath` at the top of `Install-Plugin.ps1` first if your vault isn't at the default path. Then in Obsidian: Settings → Community plugins → make sure Restricted mode is off → enable "Obsidianify Inbox".

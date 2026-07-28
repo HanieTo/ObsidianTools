@@ -1,12 +1,18 @@
-import { App, Plugin, PluginSettingTab, Setting, TFile, TFolder, Modal, Notice, normalizePath, moment } from 'obsidian';
+import { App, Plugin, PluginSettingTab, Setting, TFile, TFolder, Modal, Notice, normalizePath, moment, requestUrl } from 'obsidian';
 
 interface ObsidianifySettings {
 	inboxPath: string;
+	geminiApiKey: string;
+	useAICleanup: boolean;
 }
 
 const DEFAULT_SETTINGS: ObsidianifySettings = {
-	inboxPath: 'Inbox'
+	inboxPath: 'Inbox',
+	geminiApiKey: '',
+	useAICleanup: false
 }
+
+const MAX_AI_LINES_PER_FILE = 40;
 
 // ---- Line classifiers (ported from ObsidianifyNote.ps1's Format-NoteBody) ----
 const IP_REGEX = /^(\d{1,3}\.){3}\d{1,3}$/;
@@ -74,6 +80,74 @@ function formatNoteBody(content: string): string {
 
 function safeFileName(name: string): string {
 	return name.replace(/[\\/:*?"<>|]/g, '-').trim();
+}
+
+// Rejects an AI "cleanup" that looks like a rewrite rather than a typo fix -
+// small/free models can otherwise hallucinate very different text.
+function isCleanupSafe(original: string, cleaned: string): boolean {
+	if (!cleaned || cleaned.trim() === '') return false;
+	const ratio = cleaned.length / Math.max(original.length, 1);
+	return ratio >= 0.5 && ratio <= 1.8;
+}
+
+async function callGemini(apiKey: string, prompt: string): Promise<string | null> {
+	try {
+		const response = await requestUrl({
+			url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+			method: 'POST',
+			contentType: 'application/json',
+			body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+			throw: false
+		});
+		if (response.status !== 200) return null;
+		const text = response.json?.candidates?.[0]?.content?.parts?.[0]?.text;
+		return typeof text === 'string' ? text : null;
+	}
+	catch {
+		return null;
+	}
+}
+
+async function cleanupLineWithGemini(apiKey: string, line: string): Promise<string> {
+	const prompt = `Fix only obvious spelling/typo errors in this single sentence. Do not change its meaning, do not translate it, do not add or remove words beyond fixing typos, do not add commentary or quotes. Return only the corrected sentence, nothing else.\n\nSENTENCE:\n${line}`;
+	const result = await callGemini(apiKey, prompt);
+	if (result !== null) {
+		const cleaned = result.trim();
+		if (isCleanupSafe(line, cleaned)) {
+			return cleaned;
+		}
+	}
+	return line;
+}
+
+// Cleans up typos in plain prose lines only, via Gemini. Anything matching the
+// technical classifiers above (command, IP, domain, path, "Label:") is left
+// byte-for-byte untouched, since that's where a hallucinated "fix" is most
+// costly for technical notes.
+async function aiCleanupProse(content: string, apiKey: string): Promise<string> {
+	const lines = content.split(/\r?\n/);
+	const result: string[] = [];
+	let aiCallsUsed = 0;
+
+	for (const line of lines) {
+		const trimmed = line.trim();
+		const isTechnical = trimmed === '' ||
+			LABEL_REGEX.test(trimmed) ||
+			COMMAND_REGEX.test(trimmed) ||
+			PROMPT_REGEX.test(trimmed) ||
+			IP_REGEX.test(trimmed) ||
+			DOMAIN_REGEX.test(trimmed) ||
+			PATH_REGEX.test(trimmed);
+
+		if (isTechnical || aiCallsUsed >= MAX_AI_LINES_PER_FILE) {
+			result.push(line);
+		} else {
+			result.push(await cleanupLineWithGemini(apiKey, line));
+			aiCallsUsed++;
+		}
+	}
+
+	return result.join('\n');
 }
 
 class CategoryModal extends Modal {
@@ -145,7 +219,7 @@ class CategoryModal extends Modal {
 }
 
 export default class ObsidianifyPlugin extends Plugin {
-	settings: ObsidianifySettings;
+	settings!: ObsidianifySettings;
 	private processingFiles: Set<string> = new Set();
 
 	async onload() {
@@ -234,7 +308,10 @@ export default class ObsidianifyPlugin extends Plugin {
 				return 'skipped';
 			}
 
-			const content = await this.app.vault.read(file);
+			let content = await this.app.vault.read(file);
+			if (this.settings.useAICleanup && this.settings.geminiApiKey) {
+				content = await aiCleanupProse(content, this.settings.geminiApiKey);
+			}
 			const rawTitle = file.basename;
 			const safeTitle = safeFileName(rawTitle);
 			const body = formatNoteBody(content);
@@ -313,6 +390,31 @@ class ObsidianifySettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.inboxPath)
 				.onChange(async (value) => {
 					this.plugin.settings.inboxPath = value || 'Inbox';
+					await this.plugin.saveSettings();
+				}));
+
+		containerEl.createEl('h3', { text: 'AI cleanup (optional)' });
+
+		new Setting(containerEl)
+			.setName('Gemini API key')
+			.setDesc('Free key from aistudio.google.com. Stored only in this vault\'s plugin settings; used solely to call Google\'s Gemini API.')
+			.addText(text => {
+				text.inputEl.type = 'password';
+				text.setPlaceholder('AIza...')
+					.setValue(this.plugin.settings.geminiApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.geminiApiKey = value.trim();
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Enable AI cleanup for prose lines')
+			.setDesc('Fixes typos in plain-text lines only (never touches commands/IPs/paths/headings). Requires the API key above. When enabled, those prose lines are sent to Google\'s Gemini API - not the whole file, and nothing is sent if a line is classified as technical.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.useAICleanup)
+				.onChange(async (value) => {
+					this.plugin.settings.useAICleanup = value;
 					await this.plugin.saveSettings();
 				}));
 	}
