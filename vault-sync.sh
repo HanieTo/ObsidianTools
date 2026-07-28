@@ -33,6 +33,17 @@ ask_yes_no() {
 
 echo "=== Obsidian Vault Sync ==="
 echo ""
+
+# Termux has no OS-level credential manager like Windows' Git Credential Manager,
+# so use git's own store (plaintext in ~/.git-credentials, private to Termux's app
+# storage) so you only have to enter your GitHub username + Personal Access Token once.
+if [ "$(git config --global credential.helper)" != "store" ]; then
+    git config --global credential.helper store
+    echo "First-time setup: git will remember your GitHub username + Personal Access Token"
+    echo "in ~/.git-credentials after you enter them once on the next push/pull that needs it."
+    echo "(Use a PAT, not your GitHub password - GitHub no longer accepts passwords over HTTPS.)"
+    echo ""
+fi
 echo "What do you need?"
 echo "  1) Pull - download the vault from GitHub onto this phone"
 echo "  2) Push - upload the vault on this phone to GitHub"
