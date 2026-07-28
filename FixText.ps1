@@ -20,14 +20,8 @@ if (-not (Test-Path -LiteralPath $configPath)) {
 $apiKey = (Get-Content -LiteralPath $configPath -Raw).Trim()
 
 Write-Host ""
-Write-Host "Paste the text you want cleaned up, then press Ctrl+Z and Enter when done:" -ForegroundColor Cyan
-$lines = New-Object System.Collections.Generic.List[string]
-while ($true) {
-    $line = Read-Host
-    if ($null -eq $line) { break }
-    $lines.Add($line)
-}
-$text = $lines -join "`n"
+Write-Host "Paste the text you want cleaned up, then press Enter:" -ForegroundColor Cyan
+$text = Read-Host
 
 if ($text.Trim() -eq "") {
     Write-Host "No text entered - nothing to do." -ForegroundColor Yellow
