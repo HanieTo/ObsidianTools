@@ -1,0 +1,9 @@
+{
+  "id": "obsidianify-inbox",
+  "name": "Obsidianify Inbox",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Watches an Inbox folder for .txt files and converts them into formatted notes with category filing. Works on desktop and mobile.",
+  "author": "HanieTo",
+  "isDesktopOnly": false
+}
