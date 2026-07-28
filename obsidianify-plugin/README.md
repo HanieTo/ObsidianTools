@@ -15,7 +15,9 @@ You can also run it manually anytime via the command palette (`Process Inbox fol
 
 ## Installing
 
-**Manual install (any platform):** copy `manifest.json` and `main.js` from this folder into `<your vault>/.obsidian/plugins/obsidianify-inbox/` inside your vault, then in Obsidian go to Settings → Community plugins → enable "Obsidianify Inbox". If your vault syncs (via `vault-IT`/git, or any other sync), that folder will show up on your other devices too - just enable the plugin there as well.
+**Windows:** double-click `Install-Plugin.bat`. It copies `manifest.json` and `main.js` into `<vault>/.obsidian/plugins/obsidianify-inbox/` and creates the `Inbox` folder if it doesn't exist yet. Edit `$VaultPath` at the top of `Install-Plugin.ps1` first if your vault isn't at the default path. Then in Obsidian: Settings → Community plugins → make sure Restricted mode is off → enable "Obsidianify Inbox".
+
+**Manual install (any platform):** copy `manifest.json` and `main.js` from this folder into `<your vault>/.obsidian/plugins/obsidianify-inbox/` inside your vault, then enable it the same way. If your vault syncs (via `vault-IT`/git, or any other sync), that folder will show up on your other devices too - just enable the plugin there as well.
 
 **Mobile:** use a file manager app to place the two files into `.obsidian/plugins/obsidianify-inbox/` inside the vault folder, or push them there via git sync from desktop first (they're tracked in this repo) and let your existing vault sync bring them to your phone.
 
